@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const { Client, GatewayIntentBits } = require('discord.js');
 const path = require('path');
@@ -18,7 +19,9 @@ app.post('/api/token', (req, res) => {
         botClient.destroy();
     }
 
-    botClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+    botClient = new Client({
+        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+    });
 
     botClient.once('ready', () => {
         console.log('Bot is online');
@@ -33,7 +36,6 @@ app.post('/api/token', (req, res) => {
     botClient.login(token)
         .then(() => res.status(200).send('Bot logged in successfully'))
         .catch(err => res.status(400).send('Invalid token'));
-
 });
 
 app.listen(port, () => {
