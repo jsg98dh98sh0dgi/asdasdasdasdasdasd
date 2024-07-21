@@ -8,15 +8,15 @@ document.getElementById('loginButton').addEventListener('click', () => {
         },
         body: JSON.stringify({ token }),
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message === 'Bot logged in successfully') {
-                alert('Bot logged in successfully');
-                displayGuilds(data.guilds);
-            } else {
-                alert('Invalid token');
-            }
-        });
+    .then(response => response.json())
+    .then(data => {
+        if (data.message === 'Bot logged in successfully') {
+            displayGuilds(data.guilds);
+        } else {
+            alert('Invalid token');
+        }
+    })
+    .catch(error => console.error('Error:', error));
 });
 
 function displayGuilds(guilds) {
@@ -58,15 +58,16 @@ document.getElementById('sendButton').addEventListener('click', () => {
             },
             body: JSON.stringify({ channelId: selectedChannelId, message }),
         })
-            .then(response => response.text())
-            .then(data => {
-                if (data === 'Message sent') {
-                    alert('Message sent');
-                    document.getElementById('messageInput').value = '';
-                } else {
-                    alert('Error sending message');
-                }
-            });
+        .then(response => response.text())
+        .then(data => {
+            if (data === 'Message sent') {
+                alert('Message sent');
+                document.getElementById('messageInput').value = '';
+            } else {
+                alert('Error sending message');
+            }
+        })
+        .catch(error => console.error('Error:', error));
     } else {
         alert('Select a channel first');
     }
