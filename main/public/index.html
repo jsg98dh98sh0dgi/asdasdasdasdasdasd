@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Bot Web Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div class="sidebar">
+            <h2>Discord</h2>
+            <input type="text" id="tokenInput" placeholder="Enter bot token">
+            <button id="loginButton">Login</button>
+        </div>
+        <div class="chat">
+            <div class="messages" id="messages">
+            </div>
+            <input type="text" id="messageInput" placeholder="Type a message">
+            <button id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
