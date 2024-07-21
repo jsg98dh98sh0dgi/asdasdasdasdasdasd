@@ -36,10 +36,19 @@ body {
     color: white;
 }
 
+.channels {
+    width: 250px;
+    background-color: #2f3136;
+    color: white;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
 .messages {
     flex: 1;
     padding: 20px;
-    overflow-y: scroll;
+    overflow-y: auto;
 }
 
 #messageInput, #sendButton {
