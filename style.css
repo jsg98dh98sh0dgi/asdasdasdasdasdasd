@@ -51,7 +51,7 @@ body {
     overflow-y: auto;
 }
 
-#messageInput, #sendButton {
+#messageInput, #sendButton, #emojiInput, #reactButton {
     width: 100%;
     padding: 10px;
     border: none;

@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const { Client, GatewayIntentBits } = require('discord.js');
 const bodyParser = require('body-parser');
@@ -20,7 +19,12 @@ app.post('/api/token', async (req, res) => {
     }
 
     botClient = new Client({
-        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+        intents: [
+            GatewayIntentBits.Guilds,
+            GatewayIntentBits.GuildMessages,
+            GatewayIntentBits.MessageContent,
+            GatewayIntentBits.GuildMessageReactions
+        ],
     });
 
     botClient.once('ready', async () => {
@@ -64,6 +68,50 @@ app.post('/api/message', (req, res) => {
     channel.send(message)
         .then(() => res.status(200).send('Message sent'))
         .catch(err => res.status(500).send('Error sending message'));
+});
+
+app.post('/api/messages', async (req, res) => {
+    const { channelId } = req.body;
+
+    if (!botClient) {
+        return res.status(400).send('Bot is not logged in');
+    }
+
+    const channel = botClient.channels.cache.get(channelId);
+
+    if (!channel) {
+        return res.status(404).send('Channel not found');
+    }
+
+    try {
+        const messages = await channel.messages.fetch({ limit: 50 });
+        res.status(200).json(messages.map(message => ({
+            id: message.id,
+            content: message.content,
+            author: message.author.username,
+            timestamp: message.createdTimestamp
+        })));
+    } catch (err) {
+        res.status(500).send('Error fetching messages');
+    }
+});
+
+app.post('/api/react', (req, res) => {
+    const { messageId, emoji } = req.body;
+
+    if (!botClient) {
+        return res.status(400).send('Bot is not logged in');
+    }
+
+    const message = botClient.messages.cache.get(messageId);
+
+    if (!message) {
+        return res.status(404).send('Message not found');
+    }
+
+    message.react(emoji)
+        .then(() => res.status(200).send('Reaction added'))
+        .catch(err => res.status(500).send('Error adding reaction'));
 });
 
 app.listen(port, () => {
