@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles.css">
+  <title><%= guild.name %></title>
+</head>
+<body>
+  <div class="container">
+    <h1><%= guild.name %></h1>
+    <div class="channels">
+      <div class="text-channels">
+        <h2>Text Channels:</h2>
+        <ul>
+          <% textChannels.forEach(channel => { %>
+            <li><a href="#<%= channel.id %>"><%= channel.name %></a></li>
+          <% }) %>
+        </ul>
+      </div>
+      <div class="voice-channels">
+        <h2>Voice Channels:</h2>
+        <ul>
+          <% voiceChannels.forEach(channel => { %>
+            <li>
+              <form action="/join-voice" method="POST">
+                <input type="hidden" name="channelId" value="<%= channel.id %>">
+                <button type="submit"><%= channel.name %></button>
+              </form>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    </div>
+    <div class="message-form">
+      <h2>Send Message:</h2>
+      <form action="/message" method="POST">
+        <label for="channel">Channel:</label>
+        <select name="channelId" id="channel">
+          <% textChannels.forEach(channel => { %>
+            <option value="<%= channel.id %>"><%= channel.name %></option>
+          <% }) %>
+        </select>
+        <label for="message">Message:</label>
+        <input type="text" id="message" name="message" required>
+        <button type="submit">Send</button>
+      </form>
+    </div>
+    <a href="/">Back to servers</a>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const hash = window.location.hash.substring(1);
+      if (hash) {
+        const channelSelect = document.getElementById("channel");
+        channelSelect.value = hash;
+      }
+    });
+  </script>
+</body>
+</html>

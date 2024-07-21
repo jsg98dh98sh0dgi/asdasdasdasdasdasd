@@ -1,125 +1,111 @@
-document.getElementById('loginButton').addEventListener('click', () => {
-    const token = document.getElementById('tokenInput').value;
+const express = require('express');
+const bodyParser = require('body-parser');
+const path = require('path');
+const { Client, GatewayIntentBits, ChannelType } = require('discord.js');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
+const { PassThrough } = require('stream');
+const mic = require('mic');
+const app = express();
+const port = 3000;
 
-    fetch('/api/token', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message === 'Bot logged in successfully') {
-            displayGuilds(data.guilds);
-        } else {
-            alert('Invalid token');
-        }
-    })
-    .catch(error => console.error('Error:', error));
+const bot = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates] });
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(bodyParser.urlencoded({ extended: true }));
+
+let botLoggedIn = false;
+let micInstance;
+let micInputStream;
+let audioStream;
+
+app.get('/', (req, res) => {
+  res.render('index', { botLoggedIn, servers: bot.guilds.cache });
 });
 
-function displayGuilds(guilds) {
-    const guildContainer = document.getElementById('guilds');
-    guildContainer.innerHTML = '';
-    guilds.forEach(guild => {
-        const guildElement = document.createElement('div');
-        guildElement.textContent = guild.name;
-        guildElement.addEventListener('click', () => displayChannels(guild.channels));
-        guildContainer.appendChild(guildElement);
-    });
-}
+app.post('/login', (req, res) => {
+  const token = req.body.token;
 
-function displayChannels(channels) {
-    const channelContainer = document.getElementById('channels');
-    channelContainer.innerHTML = '';
-    channels.forEach(channel => {
-        const channelElement = document.createElement('div');
-        channelElement.textContent = channel.name;
-        channelElement.addEventListener('click', () => selectChannel(channel.id));
-        channelContainer.appendChild(channelElement);
-    });
-}
-
-let selectedChannelId = null;
-
-function selectChannel(channelId) {
-    selectedChannelId = channelId;
-    document.getElementById('messages').innerHTML = '';
-    fetchMessages(channelId);
-}
-
-function fetchMessages(channelId) {
-    fetch('/api/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ channelId }),
-    })
-    .then(response => response.json())
-    .then(messages => {
-        displayMessages(messages);
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-function displayMessages(messages) {
-    const messageContainer = document.getElementById('messages');
-    messageContainer.innerHTML = '';
-    messages.forEach(message => {
-        const messageElement = document.createElement('div');
-        messageElement.textContent = `${message.author}: ${message.content}`;
-        messageContainer.appendChild(messageElement);
-    });
-}
-
-document.getElementById('sendButton').addEventListener('click', () => {
-    const message = document.getElementById('messageInput').value;
-    if (selectedChannelId) {
-        fetch('/api/message', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ channelId: selectedChannelId, message }),
-        })
-        .then(response => response.text())
-        .then(data => {
-            if (data === 'Message sent') {
-                document.getElementById('messageInput').value = '';
-                fetchMessages(selectedChannelId);
-            } else {
-                alert('Error sending message');
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    } else {
-        alert('Select a channel first');
-    }
+  bot.login(token).then(() => {
+    botLoggedIn = true;
+    res.redirect('/');
+  }).catch(err => {
+    res.send('Failed to log in: ' + err.message);
+  });
 });
 
-document.getElementById('reactButton').addEventListener('click', () => {
-    const emoji = document.getElementById('emojiInput').value;
-    const messageId = prompt('Enter the message ID to react to:');
-    if (messageId && emoji) {
-        fetch('/api/react', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ messageId, emoji }),
-        })
-        .then(response => response.text())
-        .then(data => {
-            if (data === 'Reaction added') {
-                alert('Reaction added');
-            } else {
-                alert('Error adding reaction');
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    } else {
-        alert('Enter a valid message ID and emoji');
-    }
+app.get('/server/:id', (req, res) => {
+  const guild = bot.guilds.cache.get(req.params.id);
+  if (guild) {
+    const textChannels = guild.channels.cache.filter(channel => channel.type === ChannelType.GuildText);
+    const voiceChannels = guild.channels.cache.filter(channel => channel.type === ChannelType.GuildVoice);
+    res.render('server', { guild, textChannels, voiceChannels });
+  } else {
+    res.send('Server not found');
+  }
+});
+
+app.post('/message', (req, res) => {
+  const { channelId, message } = req.body;
+  const channel = bot.channels.cache.get(channelId);
+  if (channel) {
+    channel.send(message).then(() => {
+      res.redirect(`/server/${channel.guild.id}#${channelId}`);
+    }).catch(err => {
+      res.send('Failed to send message: ' + err.message);
+    });
+  } else {
+    res.send('Channel not found');
+  }
+});
+
+app.post('/join-voice', (req, res) => {
+  const { channelId } = req.body;
+  const channel = bot.channels.cache.get(channelId);
+  if (channel && channel.type === ChannelType.GuildVoice) {
+    const connection = joinVoiceChannel({
+      channelId: channel.id,
+      guildId: channel.guild.id,
+      adapterCreator: channel.guild.voiceAdapterCreator,
+    });
+
+    connection.on(VoiceConnectionStatus.Ready, () => {
+      console.log('The bot has connected to the channel!');
+
+      micInstance = mic({
+        rate: '16000',
+        channels: '1',
+        debug: true,
+        exitOnSilence: 6
+      });
+
+      micInputStream = micInstance.getAudioStream();
+      audioStream = new PassThrough();
+      micInputStream.pipe(audioStream);
+
+      const player = createAudioPlayer();
+      const resource = createAudioResource(audioStream, {
+        inputType: 'ogg/opus',
+      });
+
+      player.play(resource);
+      connection.subscribe(player);
+
+      micInstance.start();
+
+      player.on(AudioPlayerStatus.Idle, () => {
+        micInstance.stop();
+        connection.destroy();
+      });
+    });
+
+    res.redirect(`/server/${channel.guild.id}#${channelId}`);
+  } else {
+    res.send('Voice channel not found');
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
 });
